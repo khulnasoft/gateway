@@ -1,0 +1,38 @@
+# https://cert-manager.io/docs/configuration/selfsigned/#bootstrapping-ca-issuers
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: selfsigned
+  namespace: kengine-system
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: kengine-selfsigned-ca
+  namespace: cert-manager
+spec:
+  isCA: true
+  commonName: kengine-selfsigned-ca
+  secretName: kengine-selfsigned-ca
+  subject:
+    organizations:
+      - kengine-system
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    group: cert-manager.io
+    kind: Issuer
+    name: selfsigned
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: kengine
+  namespace: kengine-system
+spec:
+  ca:
+    secretName: kengine-selfsigned-ca

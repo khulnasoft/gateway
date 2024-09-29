@@ -1,0 +1,132 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+version: 1
+
+before:
+  hooks:
+    - go mod tidy
+    - bash -c 'if [ -n "$(git --no-pager diff --exit-code go.mod go.sum)" ]; then exit 1; fi'
+
+metadata:
+  mod_timestamp: "{{ .CommitTimestamp }}"
+
+gomod:
+  proxy: true
+
+report_sizes: true
+
+builds:
+  - id: gateway
+    binary: gateway
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+
+kos:
+  - build: gateway
+    repository: ghcr.io/khulnasoft/gateway
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    tags:
+      - '{{.Tag}}'
+      # TODO: find a way to set the latest package tag, only when the release gets published on GitHub.
+      # We can trigger an action on release_published, but we then need to write a system that "pushes"
+      # the `latest` manifest.
+      - '{{ if not .Prerelease }}latest{{ end }}'
+    creation_time: '{{ .CommitTimestamp }}'
+    ko_data_creation_time: '{{ .CommitTimestamp }}'
+    sbom: 'spdx'
+    bare: true
+    preserve_import_paths: false
+    base_image: "gcr.io/distroless/static-debian12:nonroot"
+    labels:
+      org.opencontainers.image.description: "Kubernetes Gateway API implementation powered by Kengine"
+      org.opencontainers.image.licenses: Apache-2.0"
+      org.opencontainers.image.created: "{{ .Date }}"
+      org.opencontainers.image.name: "{{ .ProjectName }}"
+      org.opencontainers.image.revision: "{{ .FullCommit }}"
+      org.opencontainers.image.source: "{{ .GitURL }}"
+      org.opencontainers.image.version: "{{ .Version }}"
+
+checksum:
+  algorithm: sha256
+  name_template: "checksums.txt"
+
+sboms:
+  - artifacts: binary
+    cmd: syft
+    args:
+      - "${artifact}"
+      - "--file"
+      - "${document}"
+      - "--output"
+      - "spdx-json"
+
+signs:
+  - cmd: cosign
+    artifacts: all
+    output: true
+    args:
+      - sign-blob
+      - --yes
+      - "--output-certificate=${certificate}"
+      - "--output-signature=${signature}"
+      - "${artifact}"
+
+docker_signs:
+  - cmd: cosign
+    artifacts: all
+    output: true
+    args:
+      - sign
+      - --yes
+      - "${artifact}"
+
+changelog:
+  use: github
+  sort: asc
+  filters:
+    exclude:
+      - '^chore(:|\()'
+      - '^perf(:|\()'
+      - '^readme(:|\()'
+      - '^refactor(:|\()'
+      - '^style(:|\()'
+      - '^tests?(:|\()'
+      - '^\w+\s+' # a hack to remove commit messages without colons thus don't correspond to a package
+  groups:
+    - title: Added
+      regexp: '^.*?feat(\(.+\))??!?:.+$'
+      order: 100
+    # Changed
+    # Deprecated
+    # Removed
+    - title: Fixed
+      regexp: '^.*?fix(\(.+\))??!?:.+$'
+      order: 500
+    - title: Security
+      regexp: '^.*?sec(\(.+\))??!?:.+$'
+      order: 600
+    - title: Dependencies
+      regexp: '^.*?chore\(deps\)!?:.+$'
+      order: 700
+    - title: Documentation
+      regexp: ^.*?docs?(\(.+\))??!?:.+$
+      order: 800
+    - title: CI
+      regexp: ^.*?(build|ci)(\(.+\))??!?:.+$
+      order: 900
+    - title: Other work
+      order: 9999
+
+release:
+  draft: true
+  prerelease: auto
+  footer: |
+    **Full Changelog**: {{ .GitURL }}/compare/{{ .PreviousTag }}...{{ .Tag }}

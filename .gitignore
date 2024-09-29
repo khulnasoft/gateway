@@ -1,0 +1,55 @@
+#------------------#
+# IDEs and Editors #
+#------------------#
+
+# JetBrains
+.fleet
+.idea
+*.iml
+*.ipr
+*.iws
+
+# Visual Studio Code
+.vscode
+
+# Sublime Text
+*.sublime-*
+
+#-------------------#
+# Operating Systems #
+#-------------------#
+
+# External Drives
+.Spotlight-V100
+.Trashes
+
+# Linux
+*~
+
+# Mac OS
+/.DS_Store
+*.DS_Store
+
+# VIM
+.*.sw[a-p]
+
+#-------------------#
+#   Project Files   #
+#-------------------#
+
+# Nix
+.devenv
+.direnv
+result*
+
+# Local dependencies
+bin
+
+# Test binary
+*.test
+
+# Build output
+dist
+
+# Kubernetes Generated files - skip generated files, except for vendored files
+!vendor/**/zz_generated.*
